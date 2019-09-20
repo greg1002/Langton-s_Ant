@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Langton's Ant</title>
+		<style>
+			html, body {
+				height: 100%;
+				margin: 0;
+			}
+			body {
+				background: black;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			canvas.main, section {
+				border: 1px solid white;
+			}
+			section {
+				height: 600px;
+				width: 400px;
+				margin: 25px;
+			}
+			h2 {
+				font: 15px courier, courier new, serif;
+				color: white;
+				padding: 10px;
+			}
+			.slidecontainer {
+				width = 100%;
+			}
+		</style>
+	</head>
+	<body>
+		<section>
+			<div class="slidecontainer">
+				<h2>Zoom: <input type="range" min="1" max="14" class="slider" value="3" id="dimension"></h2>
+				<h2>Iterations per Second: <input type="range" min="1" max="30" class="slider" value="1" id="ips"></h2>
+			</div>
+		</section>
+		<canvas height="600" width="600" class="main" id="game"></canvas>
+		<script>
+			var canvas = document.getElementById('game');
+			var context = canvas.getContext('2d');
+			var elpasedTime = 0;
+			var lastDimension = 0;
+			var count = 0;
+			var rules = [{
+				color: 'white',
+				direction: 'left'
+			},{
+				color: 'red',
+				direction: 'left'
+			},{
+				color: 'green',
+				direction: 'right'
+			},{
+				color: 'blue',
+				direction: 'right'
+			},{
+				color: 'purple',
+				direction: 'right'
+			}];
+			var ant, board, dimension, iteration, iterationPerSec;
+			reset();
+			function reset() {
+				iteration = 0;
+				ant = {
+					x: 0,
+					y: 0,
+					direction: Math.PI / 2
+				}
+				board = new Array(0);
+			}
+			
+			function turn(direction) {
+				switch(direction) {
+					case 'right':
+						ant.direction += Math.PI / 2;
+						break;
+					case 'forward':
+						break;
+					case 'left':
+						ant.direction -= Math.PI / 2;
+						break;
+					case 'backward':
+						ant.direction -= Math.PI;
+				}
+				if (ant.direction >= Math.PI * 2) {
+					ant.direction -= Math.PI * 2;
+				} else if (ant.direction < 0) {
+					ant.direction += Math.PI * 2;
+				}
+			}
+			
+			function move() {
+				ant.x += Math.cos(ant.direction);
+				ant.y += Math.sin(ant.direction);
+				ant.x = Math.round(ant.x);
+				ant.y = Math.round(ant.y);
+				
+			}
+			
+			function changeColor(tile, rule) {
+				if (rules.indexOf(rule) + 1 === rules.length) {
+					tile.color = rules[0].color;
+				} else {
+					tile.color = rules[rules.indexOf(rule) + 1].color;
+				}
+			}
+			
+			function doIteration() {
+				iteration++;
+				var newTile = true;
+				var done = false;
+				board.forEach(function(tile) {
+					if (ant.x === tile.x && ant.y === tile.y) {
+						rules.forEach(function(rule) {
+							if (tile.color === rule.color && !done) {
+								console.log(rule.direction);
+								board.splice(board.indexOf(tile),1);
+								board.unshift(tile);
+								done = true;
+								turn(rule.direction);
+								changeColor(tile, rule);
+							}
+						});
+						newTile = false;
+					}
+				});
+				if (newTile) {
+					var createdTile = {
+						x: ant.x,
+						y: ant.y,
+						color: rules[1].color
+					}
+					board.unshift(createdTile);
+					changeColor(board[0], rules[0]);
+					turn(rules[1].direction);
+				}
+				move();
+			}
+			
+			function paintGrid() {
+				context.clearRect(0,0,canvas.width,canvas.height);
+				console.log("hi");
+				var tileDimension = 600 / dimension;
+				for (i=-Math.ceil(dimension);i<=Math.ceil(dimension);i++) {
+					for (j=-Math.ceil(dimension);j<=Math.ceil(dimension);j++) {
+						var tileColor = 'grey';
+						board.forEach(function (tile) {
+							if (tile.x === i && tile.y === j) {
+								tileColor = tile.color;
+							}
+						});
+						
+						context.fillStyle = tileColor;
+						context.fillRect(300.1 + i * tileDimension, 300.1 + j * tileDimension, tileDimension - .1, tileDimension - .1);
+						
+						if (i === ant.x && j === ant.y) {
+							context.fillStyle = 'black';
+							context.fillRect(300 + (i + .4) * tileDimension, 300 + (j + .4) * tileDimension, tileDimension * .2, tileDimension*.2);
+						}
+					}
+				}
+			}
+			
+			function paint() {
+				var tileDimension = 600 / dimension;
+				if (board.length > 1) {
+					context.fillStyle = board[0].color;
+					context.clearRect(300.1 + board[0].x * tileDimension, 300.1 + board[0].y * tileDimension, tileDimension - .1, tileDimension - .1);
+					context.fillRect(300.1 + board[0].x * tileDimension, 300.1 + board[0].y * tileDimension, tileDimension - .1, tileDimension - .1);
+					context.fillStyle = board[1].color;
+					context.clearRect(300.1 + board[1].x * tileDimension, 300.1 + board[1].y * tileDimension, tileDimension - .1, tileDimension - .1);
+					context.fillRect(300.1 + board[1].x * tileDimension, 300.1 + board[1].y * tileDimension, tileDimension - .1, tileDimension - .1);
+					context.fillStyle = 'black';
+					context.fillRect(300 + (board[0].x + .4) * tileDimension, 300 + (board[0].y + .4) * tileDimension, tileDimension * .2, tileDimension*.2);
+				}
+			}
+			
+			function loop() {
+				requestAnimationFrame(loop);
+				count++;
+				dimension = Math.pow(1.5,parseInt(document.getElementById('dimension').value));
+				iterationPerSec = Math.pow(1.5,parseInt(document.getElementById('ips').value));
+				if (lastDimension !== dimension) {
+					paintGrid();
+					lastDimension = dimension;
+				}
+				if (iterationPerSec < 60) {
+					if (count > 60/iterationPerSec) {
+						count -= 60/iterationPerSec;
+						doIteration();
+						paint();
+					}
+				} else {
+					while (count > 0) {
+						count -= 60/iterationPerSec;
+						doIteration();
+						paint();
+					}
+				}
+			}
+			document.addEventListener('keydown',function(e) {
+				if(e.which === 32) {
+					doIteration();
+				}
+			});
+			
+			requestAnimationFrame(loop);
+		</script>
+	</body>
+</html>
